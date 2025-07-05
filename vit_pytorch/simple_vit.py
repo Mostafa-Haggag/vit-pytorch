@@ -8,16 +8,40 @@ from einops.layers.torch import Rearrange
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
-
+'''
+posemb_sincos_2d generates 
+a 2D sinusoidal positional embedding, 
+often used in Vision Transformers (ViTs)
+and other transformer-like architectures
+for image data.
+'''
 def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
+    '''
+    In transformer models,
+    there's no inherent sense of position.
+    This embedding encodes (x, y) positions
+     using sine and cosine functions into a
+     vector representation — allowing the mode
+    l to understand spatial relationships.
+
+    '''
     y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
+    # Creates a grid of y and x coordinates for the image with height h and width w.
     assert (dim % 4) == 0, "feature dimension must be multiple of 4 for sincos emb"
+    # The embedding vector must be divisible by 4 to split equally for:
+    # sin(x), cos(x), sin(y), cos(y)
     omega = torch.arange(dim // 4) / (dim // 4 - 1)
     omega = 1.0 / (temperature ** omega)
-
+    # Creates frequency scales using a
+    # logarithmic temperature-based frequency.
+    # Similar to how positional
+    # encodings are done in transformers.
     y = y.flatten()[:, None] * omega[None, :]
     x = x.flatten()[:, None] * omega[None, :]
+    # Computes the outer product of positions with frequencies for x and y axes.
     pe = torch.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim=1)
+    # Concatenates sine and cosine of both x and y positional encodings → final embedding per (x, y) position.
+    # pe.shape = (h × w, dim) → one vector of size dim per spatial position
     return pe.type(dtype)
 
 # classes
@@ -46,6 +70,7 @@ class Attention(nn.Module):
 
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
         self.to_out = nn.Linear(inner_dim, dim, bias = False)
+        # just a linear laayer e basta cosi
 
     def forward(self, x):
         x = self.norm(x)
@@ -78,7 +103,15 @@ class Transformer(nn.Module):
         return self.norm(x)
 
 class SimpleViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
+    def __init__(self, *, image_size,
+                 patch_size,
+                 num_classes,
+                 dim,
+                 depth,
+                 heads,
+                 mlp_dim,
+                 channels = 3,
+                 dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -86,19 +119,20 @@ class SimpleViT(nn.Module):
         assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
 
         patch_dim = channels * patch_height * patch_width
-
+        # exactly the same as the vit trtransformaer
         self.to_patch_embedding = nn.Sequential(
             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
             nn.LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
         )
-
+        # instead of using random embedding he is using something else completely
         self.pos_embedding = posemb_sincos_2d(
             h = image_height // patch_height,
             w = image_width // patch_width,
             dim = dim,
-        ) 
+        )
+        # SimpleViT uses non-learnable sinusoidal positional embeddings,
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 
@@ -115,6 +149,7 @@ class SimpleViT(nn.Module):
 
         x = self.transformer(x)
         x = x.mean(dim = 1)
+        # SimpleViT doesn't use a [CLS] token. It pools the final tokens using a mean over all patches
 
         x = self.to_latent(x)
         return self.linear_head(x)
