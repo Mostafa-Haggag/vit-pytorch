@@ -92,6 +92,10 @@ class T2TViT(nn.Module):
             layers.extend([
                 RearrangeImage() if not is_first else nn.Identity(),# Reshape back to image if needed
                 nn.Unfold(kernel_size = kernel_size, stride = stride, padding = stride // 2), # Patchify image with kernel & stride
+                # it extracts [1, C*kernelsize*kernelsize, num_patches]
+                # output_dim = floor((input_dim + 2 * padding - kernel_size) / stride + 1)
+                # size of each patch and width of each patch
+                # so number of patches hw and width
                 Rearrange('b c n -> b n c'),# Flatten patches into tokens
                 Transformer(dim = layer_dim, # Add local Transformer
                             heads = 1,
