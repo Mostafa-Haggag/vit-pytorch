@@ -5,7 +5,8 @@ from einops.layers.torch import Rearrange
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
-
+# it is just a simple trasnfoerm but the only difference is the fact that he uses the transformers
+# block that he wants
 class ViT(nn.Module):
     def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
         super().__init__()
