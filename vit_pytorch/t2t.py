@@ -40,7 +40,7 @@ class RearrangeImage(nn.Module):
 '''
 T2T: A smarter patching strategy
 Instead of just slicing the image into patches once, T2T-ViT applies multiple local operations (like unfolding) to progressively transform the image into tokens.
-
+Specifically, to avoid information loss in generating tokens from the re-structurizated image, we split it into patches with overlapping.
 🔁 How it works:
 Iterative Unfolding (like convolution) – Instead of a single patch extraction, the image is unfolded multiple times:
 
@@ -51,7 +51,9 @@ Then rearranges and reprojects the data into new tokens.
 Local Transformers – Between these unfoldings, a lightweight Transformer block models the local dependencies (relationships between neighboring patches).
 
 Final tokens – After several unfold steps, you get tokens that encode richer local structures (like textures and edges), better than raw 16x16 pixel patches.
-
+As such, each patch is correlated with surrounding patches to establish a prior that there should be
+ stronger correlations between surrounding tokens. The tokens in each split patch are concatenated as one token 
+(Tokens-to-Token, Fig. 3), and thus the local information can be aggregated from surrounding pixels and patches.
 
 '''
 class T2TViT(nn.Module):
